@@ -4,25 +4,31 @@ import { api } from '../lib/api';
 import { parseFullWorkout, formatLine, totalYards } from '../lib/workoutParser';
 
 const DISTANCES = [25, 50, 75, 100, 125, 150, 200, 250, 300, 350, 400, 500];
+// label parts: pre = text before key letter, key = underlined letter, suf = after
 const STROKES = [
-  { label: 'Free', code: '' },
-  { label: 'Pull', code: 'p' },
-  { label: 'Kick', code: 'k' },
-  { label: 'Choice', code: 'c' },
-  { label: 'Fly', code: 'f' },
-  { label: 'Back', code: 'b' },
-  { label: 'bReast', code: 'R' },
-  { label: 'Sprint', code: 's' },
-  { label: 'Drill', code: 'd' },
-  { label: 'Zombie', code: 'z' },
+  { pre: '',   key: 'F', suf: 'ree',          code: 'f' },
+  { pre: 'f',  key: 'L', suf: 'y',            code: 'l' },  // fLy
+  { pre: '',   key: 'B', suf: 'ack',          code: 'b' },
+  { pre: 'b',  key: 'R', suf: 'east',         code: 'R' },  // bReast
+  { pre: '',   key: 'C', suf: 'hoice',        code: 'c' },
+  { pre: '',   key: 'P', suf: 'ull',          code: 'p' },
+  { pre: '',   key: 'K', suf: 'ick',          code: 'k' },
+  { pre: '',   key: 'Z', suf: 'ombie Kick',   code: 'z' },
 ];
 const MODIFIERS = [
-  { label: 'Descend', code: 'desc' },
-  { label: 'Ascend', code: 'asc' },
-  { label: 'Fast', code: 'fast' },
-  { label: 'Easy', code: 'easy' },
+  { pre: '',   key: 'S', suf: 'print',  code: 's' },  // Sprint
+  { pre: '',   key: 'D', suf: 'rill',   code: 'd' },  // Drill
+  { pre: 'D',  key: 'e', suf: 'scend',  code: 'desc' },
+  { pre: 'A',  key: 's', suf: 'cend',   code: 'asc'  },
+  { pre: 'f',  key: 'A', suf: 'st',     code: 'a'    },  // fAst
+  { pre: '',   key: 'E', suf: 'asy',    code: 'e'    },
 ];
 const TIME_OPTIONS = ['AM', 'Noon', 'PM', 'Evening'];
+
+// Renders a button label with one underlined key letter
+function KeyLabel({ pre, keyChar, suf }) {
+  return <span>{pre}<span className="underline font-bold">{keyChar}</span>{suf}</span>;
+}
 
 export default function WorkoutCreatePage() {
   const { id } = useParams();
@@ -34,6 +40,8 @@ export default function WorkoutCreatePage() {
   const [rawText, setRawText] = useState('*Warmup\n');
   const [parsed, setParsed] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [sectionName, setSectionName] = useState('');
+  const [showSectionInput, setShowSectionInput] = useState(false);
 
   // Builder state
   const [builderReps, setBuilderReps] = useState(4);
@@ -74,8 +82,10 @@ export default function WorkoutCreatePage() {
   }
 
   function addSection() {
-    const name = prompt('Section name:', 'Main Set');
-    if (name) insertText(`*${name}`);
+    if (!sectionName.trim()) return;
+    insertText(`*${sectionName.trim()}`);
+    setSectionName('');
+    setShowSectionInput(false);
   }
 
   async function save() {
@@ -227,9 +237,9 @@ export default function WorkoutCreatePage() {
               <label className="text-xs font-medium text-gray-500 block mb-1">Stroke</label>
               <div className="flex flex-wrap gap-1">
                 {STROKES.map(s => (
-                  <button key={s.label} onClick={() => setBuilderStroke(s.code)}
+                  <button key={s.code} onClick={() => setBuilderStroke(s.code)}
                     className={`px-2 py-1 text-xs rounded ${builderStroke === s.code ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                    {s.label}
+                    <KeyLabel pre={s.pre} keyChar={s.key} suf={s.suf} />
                   </button>
                 ))}
               </div>
@@ -244,9 +254,9 @@ export default function WorkoutCreatePage() {
                   None
                 </button>
                 {MODIFIERS.map(m => (
-                  <button key={m.label} onClick={() => setBuilderMod(m.code)}
+                  <button key={m.code} onClick={() => setBuilderMod(m.code)}
                     className={`px-2 py-1 text-xs rounded ${builderMod === m.code ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                    {m.label}
+                    <KeyLabel pre={m.pre} keyChar={m.key} suf={m.suf} />
                   </button>
                 ))}
               </div>
@@ -263,10 +273,27 @@ export default function WorkoutCreatePage() {
               + Add Line
             </button>
 
-            <button onClick={addSection}
-              className="w-full bg-gray-300 text-gray-800 py-2 rounded-lg text-sm font-semibold hover:bg-gray-400">
-              + Add Section
-            </button>
+            {showSectionInput ? (
+              <div className="space-y-1">
+                <input
+                  autoFocus
+                  value={sectionName}
+                  onChange={e => setSectionName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addSection(); if (e.key === 'Escape') setShowSectionInput(false); }}
+                  placeholder="Section name..."
+                  className="w-full border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="flex gap-1">
+                  <button onClick={addSection} className="flex-1 bg-blue-700 text-white py-1.5 rounded-lg text-xs font-semibold">Add</button>
+                  <button onClick={() => setShowSectionInput(false)} className="px-3 text-gray-500 text-xs">✕</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowSectionInput(true)}
+                className="w-full bg-gray-300 text-gray-800 py-2 rounded-lg text-sm font-semibold hover:bg-gray-400">
+                + Add Section
+              </button>
+            )}
           </div>
         </div>
       </div>

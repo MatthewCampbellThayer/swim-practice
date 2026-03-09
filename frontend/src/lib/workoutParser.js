@@ -1,34 +1,57 @@
 // Workout shorthand parser
 // Format: [reps]x[distance][stroke][modifier]
-// e.g. 4x50k = 4 x 50 Kick, 8x25Rdesc = 8 x 25 bReast Descend
+// e.g. 4x50l = 4 x 50 Fly, 4x50k = 4 x 50 Kick, 8x25Rdesc = 8 x 25 bReast Descend
 // *Section Name = new section
 // Blank line = spacer
+//
+// Stroke codes (key letter underlined in UI):
+//   (none) or f = Free    k = Kick     p = Pull    c = Choice
+//   l = Fly               b = Back     R = bReast  s = Sprint
+//   d = Drill             z = Zombie Kick
+//
+// Modifier codes:
+//   desc/D = Descend   asc = Ascend   a/fast = Fast   e/easy = Easy
 
+// Strokes: the 7 pure strokes
 const STROKES = {
-  k: 'Kick', K: 'Kick',
-  p: 'Pull', P: 'Pull',
+  f: 'Free',  F: 'Free',
+  k: 'Kick',  K: 'Kick',
+  p: 'Pull',  P: 'Pull',
+  l: 'Fly',   L: 'Fly',         // fLy
+  b: 'Back',  B: 'Back',
+  R: 'bReast', r: 'bReast',
   c: 'Choice', C: 'Choice',
-  f: 'Fly', F: 'Fly',
-  b: 'Back', B: 'Back',
-  R: 'bReast',
-  s: 'Sprint', S: 'Sprint',
-  d: 'Drill', D: 'Drill',
   z: 'Zombie Kick', Z: 'Zombie Kick',
 };
 
-const MODIFIERS = {
-  desc: 'Descend', descend: 'Descend',
-  asc: 'Ascend', ascend: 'Ascend',
-  fast: 'Fast',
-  easy: 'Easy',
+// Modifiers: include Sprint + Drill (how you swim it) + descriptors
+// Try longest word matches first to avoid prefix collisions
+const MODIFIER_WORDS = [
+  ['descend', 'Descend'],
+  ['ascend',  'Ascend'],
+  ['sprint',  'Sprint'],
+  ['drill',   'Drill'],
+  ['desc',    'Descend'],
+  ['asc',     'Ascend'],
+  ['fast',    'Fast'],
+  ['easy',    'Easy'],
+];
+const MODIFIER_CHARS = {
+  s: 'Sprint',  // Sprint
+  d: 'Drill',   // Drill
+  a: 'Fast',    // fAst
+  e: 'Easy',    // Easy
 };
 
 function parseModifier(str) {
-  const lower = str.toLowerCase();
-  for (const [key, val] of Object.entries(MODIFIERS)) {
+  const lower = str.toLowerCase().trim();
+  if (!lower) return null;
+  // Try word matches first (longest first)
+  for (const [key, val] of MODIFIER_WORDS) {
     if (lower.startsWith(key)) return val;
   }
-  return null;
+  // Single-char modifier
+  return MODIFIER_CHARS[lower[0]] ?? null;
 }
 
 function parseLine(line) {
@@ -36,45 +59,53 @@ function parseLine(line) {
   if (!trimmed) return { type: 'spacer' };
   if (trimmed.startsWith('*')) return { type: 'section', name: trimmed.slice(1).trim() || 'Section' };
 
-  // Try to match [reps]x[distance][stroke?][modifier?]
-  // e.g. 4x50k, 8x25Rdesc, 2x100, 10x25 fast, 4x50pull easy
+  // Match: [reps]x[distance][rest]
   const match = trimmed.match(/^(\d+)\s*[xX]\s*(\d+)\s*([a-zA-Z]*)(.*)$/);
   if (!match) return { type: 'text', raw: trimmed };
 
   const [, repsStr, distStr, strokeMod, rest] = match;
   const reps = parseInt(repsStr);
   const distance = parseInt(distStr);
+  let remaining = (strokeMod + rest).trim();
   let stroke = 'Free';
   let modifier = null;
-  let remaining = (strokeMod + rest).trim();
 
-  // Try single-char stroke code first
-  if (remaining.length > 0) {
-    const firstChar = remaining[0];
-    if (STROKES[firstChar]) {
-      stroke = STROKES[firstChar];
-      remaining = remaining.slice(1).trim();
+  if (remaining) {
+    // 1. Try to match full remaining as a modifier FIRST (avoids d=Drill eating "desc")
+    const fullMod = parseModifier(remaining);
+    if (fullMod) {
+      modifier = fullMod;
+      // stroke stays Free
     } else {
-      // Try word-based stroke
-      const lowerRem = remaining.toLowerCase();
-      const wordStrokes = {
-        'kick': 'Kick', 'pull': 'Pull', 'choice': 'Choice', 'fly': 'Fly',
-        'back': 'Back', 'breast': 'bReast', 'sprint': 'Sprint',
-        'drill': 'Drill', 'zombie': 'Zombie Kick', 'free': 'Free',
-      };
-      for (const [word, label] of Object.entries(wordStrokes)) {
-        if (lowerRem.startsWith(word)) {
-          stroke = label;
-          remaining = remaining.slice(word.length).trim();
-          break;
+      // 2. Try single-char stroke code
+      const firstChar = remaining[0];
+      if (STROKES[firstChar]) {
+        stroke = STROKES[firstChar];
+        remaining = remaining.slice(1).trim();
+        if (remaining) modifier = parseModifier(remaining);
+      } else {
+        // 3. Try word-based stroke names
+        const lowerRem = remaining.toLowerCase();
+        const wordStrokes = [
+          ['zombie kick', 'Zombie Kick'],
+          ['zombie',  'Zombie Kick'],
+          ['breast',  'bReast'],
+          ['kick',    'Kick'],
+          ['pull',    'Pull'],
+          ['back',    'Back'],
+          ['free',    'Free'],
+          ['fly',     'Fly'],
+        ];
+        for (const [word, label] of wordStrokes) {
+          if (lowerRem.startsWith(word)) {
+            stroke = label;
+            remaining = remaining.slice(word.length).trim();
+            if (remaining) modifier = parseModifier(remaining);
+            break;
+          }
         }
       }
     }
-  }
-
-  // Parse modifier
-  if (remaining) {
-    modifier = parseModifier(remaining);
   }
 
   const totalYards = reps * distance;
@@ -97,7 +128,6 @@ export function formatLine(parsed) {
 }
 
 export function parseFullWorkout(rawText) {
-  // Split into sections by * markers, return array of {name, lines}
   const lines = rawText.split('\n');
   const sections = [];
   let currentSection = { name: 'Warmup', lines: [] };

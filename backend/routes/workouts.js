@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (req, res) => {
   let query = supabase
     .from('workouts')
     .select('*, club:clubs(id,name), sections:workout_sections(*)')
-    .in('club_id', club_ids ?? clubIds)
+    .in('club_id', clubIds)
     .order('created_at');
 
   if (club_id) query = query.eq('club_id', club_id);
