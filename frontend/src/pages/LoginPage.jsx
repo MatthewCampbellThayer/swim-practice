@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [devCode, setDevCode] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -16,7 +17,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      await api.auth.sendOtp(cell);
+      const res = await api.auth.sendOtp(cell);
+      if (res.devCode) setDevCode(res.devCode);
       setOtpSent(true);
     } catch (err) {
       setError(err.message);
@@ -69,6 +71,12 @@ export default function LoginPage() {
         ) : (
           <form onSubmit={verifyOtp} className="space-y-4">
             <p className="text-gray-600 text-center">Enter the 6-digit code sent to {cell}</p>
+            {devCode && (
+              <div className="bg-yellow-50 border border-yellow-300 rounded-lg px-4 py-3 text-center">
+                <p className="text-xs text-yellow-700 font-medium uppercase tracking-wide mb-1">⚠️ Dev Mode — SMS not sent</p>
+                <p className="text-2xl font-mono font-bold text-yellow-800 tracking-widest">{devCode}</p>
+              </div>
+            )}
             <input
               type="text"
               value={code}

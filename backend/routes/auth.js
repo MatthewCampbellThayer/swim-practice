@@ -33,7 +33,8 @@ router.post('/send-otp', async (req, res) => {
   await supabase.from('otp_codes').upsert({ cell: normalized, code, expires_at: expiresAt.toISOString() });
   await sendSMS(normalized, `Your SwimPractice code: ${code}`);
 
-  res.json({ ok: true });
+  const showCode = process.env.DEV_SHOW_OTP === 'true';
+  res.json({ ok: true, ...(showCode ? { devCode: code } : {}) });
 });
 
 // POST /auth/verify-otp  { cell, code }
