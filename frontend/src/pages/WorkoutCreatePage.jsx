@@ -50,11 +50,24 @@ export default function WorkoutCreatePage() {
   const [builderMod, setBuilderMod] = useState('');
 
   useEffect(() => {
-    api.clubs.mine().then(data => {
-      setClubs(data);
-      if (data.length) setClubId(data[0].id);
-    });
-  }, []);
+    if (id) {
+      // Edit mode: load clubs and workout in parallel, then populate
+      Promise.all([api.clubs.mine(), api.workouts.get(id)]).then(([clubData, workout]) => {
+        setClubs(clubData);
+        setClubId(workout.club_id);
+        setDate(workout.date);
+        setTimeOfDay(workout.time_of_day);
+        // raw_text is stored per-section; use first section's raw_text as the canonical input
+        const raw = workout.sections?.[0]?.raw_text ?? '*Warmup\n';
+        setRawText(raw);
+      });
+    } else {
+      api.clubs.mine().then(data => {
+        setClubs(data);
+        if (data.length) setClubId(data[0].id);
+      });
+    }
+  }, [id]);
 
   useEffect(() => {
     setParsed(parseFullWorkout(rawText));
@@ -99,10 +112,11 @@ export default function WorkoutCreatePage() {
       }));
       if (id) {
         await api.workouts.update(id, { club_id: clubId, date, time_of_day: timeOfDay, sections });
+        navigate('/workouts');
       } else {
         await api.workouts.create({ club_id: clubId, date, time_of_day: timeOfDay, sections });
+        navigate('/dashboard');
       }
-      navigate('/dashboard');
     } catch (err) {
       alert(err.message);
     } finally { setSaving(false); }
