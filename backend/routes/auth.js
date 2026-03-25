@@ -31,9 +31,14 @@ router.post('/send-otp', async (req, res) => {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
   await supabase.from('otp_codes').upsert({ cell: normalized, code, expires_at: expiresAt.toISOString() });
-  await sendSMS(normalized, `Your SwimPractice code: ${code}`);
 
   const showCode = process.env.DEV_SHOW_OTP === 'true';
+  if (!showCode) {
+    await sendSMS(normalized, `Your SwimPractice code: ${code}`);
+  } else {
+    console.log(`[DEV] OTP for ${normalized}: ${code}`);
+  }
+
   res.json({ ok: true, ...(showCode ? { devCode: code } : {}) });
 });
 

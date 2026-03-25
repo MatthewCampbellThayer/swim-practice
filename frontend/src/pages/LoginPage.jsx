@@ -46,6 +46,13 @@ export default function LoginPage() {
           <p className="text-gray-500 mt-1">Coach Login</p>
         </div>
 
+        {devCode && (
+          <div className="fixed bottom-4 right-4 bg-yellow-400 text-yellow-900 rounded-xl shadow-lg px-4 py-3 z-50 text-right">
+            <p className="text-xs font-bold uppercase tracking-wide">🧪 Dev — No SMS</p>
+            <p className="text-3xl font-mono font-black tracking-widest">{devCode}</p>
+          </div>
+        )}
+
         {!otpSent ? (
           <form onSubmit={sendOtp} className="space-y-4">
             <div>
@@ -71,12 +78,6 @@ export default function LoginPage() {
         ) : (
           <form onSubmit={verifyOtp} className="space-y-4">
             <p className="text-gray-600 text-center">Enter the 6-digit code sent to {cell}</p>
-            {devCode && (
-              <div className="bg-yellow-50 border border-yellow-300 rounded-lg px-4 py-3 text-center">
-                <p className="text-xs text-yellow-700 font-medium uppercase tracking-wide mb-1">⚠️ Dev Mode — SMS not sent</p>
-                <p className="text-2xl font-mono font-bold text-yellow-800 tracking-widest">{devCode}</p>
-              </div>
-            )}
             <input
               type="text"
               value={code}
