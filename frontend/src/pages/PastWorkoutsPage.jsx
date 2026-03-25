@@ -9,9 +9,12 @@ export default function PastWorkoutsPage() {
 
   const [clubs, setClubs] = useState([]);
   const [selectedClub, setSelectedClub] = useState('');
+  const [days, setDays] = useState(30);
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+
+  const DAY_OPTIONS = [30, 60, 90];
 
   // Load clubs on mount
   useEffect(() => {
@@ -21,14 +24,17 @@ export default function PastWorkoutsPage() {
     });
   }, []);
 
-  // Load workouts when club changes
+  // Load workouts when club or day filter changes
   useEffect(() => {
     if (!selectedClub) return;
     setLoading(true);
+    const today = new Date().toISOString().split('T')[0];
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
     api.workouts.list({ club_id: selectedClub }).then(data => {
-      const today = new Date().toISOString().split('T')[0];
       const past = data
-        .filter(w => w.date <= today)
+        .filter(w => w.date <= today && w.date >= cutoffStr)
         .sort((a, b) => {
           if (b.date !== a.date) return b.date.localeCompare(a.date);
           const TIME_ORDER = ['AM', 'Noon', 'PM', 'Evening'];
@@ -37,7 +43,7 @@ export default function PastWorkoutsPage() {
       setWorkouts(past);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [selectedClub]);
+  }, [selectedClub, days]);
 
   async function handleDelete(id) {
     if (!window.confirm('Delete this workout?')) return;
@@ -93,6 +99,26 @@ export default function PastWorkoutsPage() {
             ))}
           </div>
         )}
+
+        {/* Day range filter */}
+        <div className="flex items-center gap-3">
+          <span className="text-blue-300 text-sm">Show:</span>
+          <div className="flex gap-2">
+            {DAY_OPTIONS.map(d => (
+              <button
+                key={d}
+                onClick={() => setDays(d)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  days === d
+                    ? 'bg-white text-blue-900 font-semibold'
+                    : 'bg-blue-700 hover:bg-blue-600 text-white'
+                }`}
+              >
+                {d} days
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Workout list */}
         {loading ? (
