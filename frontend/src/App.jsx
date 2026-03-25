@@ -6,6 +6,7 @@ import WorkoutCreatePage from './pages/WorkoutCreatePage';
 import LiveWorkoutPage from './pages/LiveWorkoutPage';
 import AttendancePage from './pages/AttendancePage';
 import ClubManagementPage from './pages/ClubManagementPage';
+import PastWorkoutsPage from './pages/PastWorkoutsPage';
 
 function Protected({ children }) {
   const { coach, loading } = useAuth();
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/workouts/:id/edit" element={<Protected><WorkoutCreatePage /></Protected>} />
           <Route path="/attendance" element={<Protected><AttendancePage /></Protected>} />
           <Route path="/manage" element={<Protected><ClubManagementPage /></Protected>} />
+          <Route path="/workouts" element={<Protected><PastWorkoutsPage /></Protected>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
